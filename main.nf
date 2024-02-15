@@ -1,15 +1,30 @@
-process sayHello {
-    input: 
-        val x
+params.inputDir = "inputs"
+params.outputDir = "outputs"
+
+process deduplicateUMIs {
+
+    container = "flomicsbiotech/umitools_last_version"
+
+    input:
+    path file
+
     output:
-        stdout
-    
-    script:
+    path "deduplicated.bam"
+
     """
-    echo $x
+    umi_tools dedup -I ${file} --output-stats=deduplicated -S deduplicated.bam
     """
 }
 
 workflow {
-  Channel.of('Bonjour', 'Ciao', 'Hello', 'Hola') | sayHello | view
+  
+    // Create a channel with all files in params.inputDir
+    umiSequencesFiles_ch = Channel.fromPath(params.inputDir + "/*")
+
+    deduplicatedUMIs_ch = deduplicateUMIs(umiSequencesFiles_ch)
+
+    deduplicatedUMIs_ch.collectFile (
+        storeDir: "$params.outputDir"
+    )
+
 }
