@@ -8,7 +8,11 @@
 	},
 	"mounts": [
 		"type=volume,src=nfwrk2,dst=/nf",
-		"type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock"
+	],
+	"runArgs": [
+		// "--privileged",
+		// Mount the Docker socket so you can run Docker commands from within the container.
+		"-v", "/var/run/docker.sock:/var/run/docker.sock"
 	]
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
