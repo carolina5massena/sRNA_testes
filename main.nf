@@ -7,16 +7,16 @@ params.genome = "/mnt/d/Teste_Nextflow/genoma_de_referencia/GCF_mixLupe.gtf" // 
 params.index = "/mnt/d/Teste_Nextflow/genoma_de_referencia/index_GCF"
 
 process umiToolsExtract {
-    container "149243bc791fc6e729ac1daaedc04e2d8e4eb8f7e00b21dd0fd3482416ef53a3"
+    container "jdelling7igfl/umi_tools:1.1.2"
 
     input:
     path file
 
     output:
-    path "*_mapped.sam"
+    path "${file}_umi.fastq.gz"
 
     """
-    bowtie --threads 4 -v 2 -m 8 -a ${params.index} ${file} --sam ${params.outputDir}/bowtie_mapeados/${file}_mapped.sam
+    umi_tools extract --stdin=${file} --extract-method=regex --bc-pattern='.{17,75}(?P<discard_1>AACTGTAGGCACCATCAAT)(?P<umi_1>.{12})(?P<discard_2>AGATCGGAAGAGCACACGTCT)(?P<discard_3>.*)' --log=processed.log --stdout ${file}_umi.fastq.gz
     """
 }
 
@@ -81,6 +81,7 @@ process umiToolsDedup {
 
     input:
     path file
+    path dummy
 
     output:
     path "${file}_deduplicated.bam"
@@ -127,18 +128,6 @@ process fastqc_processado {
 
 workflow {
   
-  
-    file("${params.outputDir}/featureCounts").mkdirs()
-    file("${params.outputDir}/umi_dedup_output").mkdirs()
-    file("${params.outputDir}/samtools_ordenados").mkdirs()
-    file("${params.outputDir}/samtools_convertidos").mkdirs()
-    file("${params.outputDir}/umi_processados").mkdirs()
-    file("${params.outputDir}/bowtie_mapeados").mkdirs()
-    file("${params.outputDir}/fastqc_output_processado").mkdirs()
-    file("${params.outputDir}/fastqc_output_original").mkdirs()
-
-
-
     // Create a channel with all files in params.inputDir
     sequencesFiles_ch = Channel.fromPath(params.inputDir + "/*").flatten()
 
@@ -178,7 +167,7 @@ workflow {
 
 
     // Deduplicate BAM files
-    umiDedup_ch = umiToolsDedup(samSort_ch)
+    umiDedup_ch = umiToolsDedup(samSort_ch, samIndex_ch)
     umiDedup_ch.collectFile (
         storeDir: "${params.outputDir}/umi_dedup_output"
     )
