@@ -129,8 +129,12 @@ process fastqc_original {
     input:
     path file
 
+    output:
+    path "fastqc_output_original"
+
     """
-    fastqc ${file} -o ${params.outputDir}/fastqc_output_original
+    mkdir fastqc_output_original
+    fastqc ${file} -o fastqc_output_original
     """
 }
 process fastqc_processado {
@@ -152,7 +156,10 @@ workflow {
     file("${params.outputDir}/fastqc_output_processado").mkdirs()
     file("${params.outputDir}/fastqc_output_original").mkdirs()
 
-    fastqc_original(sequencesFiles_ch)
+    fastqcOutput_ch = fastqc_original(sequencesFiles_ch)
+    fastqcOutput_ch.collectFile (
+        storeDir: "${params.outputDir}/fastqc_output_original"
+    )
 
     bowtie_build(genome_ch)
 
@@ -168,7 +175,7 @@ workflow {
     // Align the sequences to the reference genome
     bowtieMapped_ch = bowtie(bowtieInputs_ch)
     bowtieMapped_ch.collectFile (
-    storeDir: "${params.outputDir}/bowtie_mapeados"
+        storeDir: "${params.outputDir}/bowtie_mapeados"
     )   
 
     fastqc_processado(umiToolsExtract.out)

@@ -42,3 +42,5 @@ wave-tests
 
 inputs/
 outputs/
+params.yml
+mnt
