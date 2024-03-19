@@ -130,7 +130,7 @@ process fastqc_original {
     path file
 
     output:
-    path "fastqc_output_original"
+    path "fastqc_output_original/*"
 
     """
     mkdir fastqc_output_original
@@ -143,8 +143,11 @@ process fastqc_processado {
     input:
     path file
 
+    output:
+    path "fastqc_output_processado/*"
+
     """
-    fastqc ${file} -o ${params.outputDir}/fastqc_output_processado
+    fastqc ${file} -o fastqc_output_processado
     """
 }
 
@@ -157,7 +160,7 @@ workflow {
     file("${params.outputDir}/fastqc_output_original").mkdirs()
 
     fastqcOutput_ch = fastqc_original(sequencesFiles_ch)
-    fastqcOutput_ch.collectFile (
+    fastqcOutput_ch.flatten().collectFile (
         storeDir: "${params.outputDir}/fastqc_output_original"
     )
 
