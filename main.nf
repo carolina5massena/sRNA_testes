@@ -3,8 +3,9 @@ nextflow.enable.dsl=2
 
 params.inputDir = "/mnt/d/Teste_Nextflow/arquivos_de_input"
 params.outputDir = "/mnt/d/Teste_Nextflow"
-params.genome = "/mnt/d/Teste_Nextflow/genoma_de_referencia/GCF_mixLupe.gtf" // valor padrão
-params.index = "/mnt/d/Teste_Nextflow/genoma_de_referencia/index_GCF"
+params.genome_gtf = "/mnt/d/Teste_Nextflow/genoma_de_referencia/GCF_mixLupe.gtf" // valor padrão
+params.genoma_fasta = "/mnt/d/Teste_Nextflow/genoma_de_referencia/index_GCF"
+
 
 process umiToolsExtract {
     container "jdelling7igfl/umi_tools:1.1.2"
@@ -21,7 +22,7 @@ process umiToolsExtract {
 }
 
 process bowtie {
-    container "fd47fa53b2e"
+    container "pegi3s/bowtie1:1.2.3"
 
     input:
     path file
@@ -34,8 +35,24 @@ process bowtie {
     """
 }
 
+
+process bowtie_build {
+    container "pegi3s/bowtie1:1.2.3"
+
+    input:
+    path file
+
+    output:
+    path "${file}_mapped.sam"
+
+    """
+    bowtie-build ${params.genoma_fasta} meu_genoma_index
+    """
+}
+
+
 process samtoolsView {
-    container "genomicpariscentre/samtools"
+    container "genomicpariscentre/samtools:1.4.1"
 
     input:
     path file
@@ -49,7 +66,7 @@ process samtoolsView {
 }
 
 process samtoolsSort {
-    container "genomicpariscentre/samtools"
+    container "genomicpariscentre/samtools:1.4.1"
 
     input:
     path file
@@ -63,7 +80,7 @@ process samtoolsSort {
 }
 
 process samtoolsIndex {
-    container "genomicpariscentre/samtools"
+    container "genomicpariscentre/samtools:1.4.1"
 
     input:
     path file
@@ -77,7 +94,7 @@ process samtoolsIndex {
 }
 
 process umiToolsDedup {
-    container "149243bc791fc6e729ac1daaedc04e2d8e4eb8f7e00b21dd0fd3482416ef53a3"
+    container "jdelling7igfl/umi_tools:1.1.2"
 
     input:
     path file
@@ -92,7 +109,7 @@ process umiToolsDedup {
 }
 
 process featureCounts {
-    container "5672d961627a"
+    container "pegi3s/feature-counts:2.0.0"
 
     input:
     path file
@@ -106,7 +123,7 @@ process featureCounts {
 }
 
 process fastqc_original {
-    container "7b8f85bb68da"
+    container "biocontainers/fastqc:v0.11.9_cv8"
 
     input:
     path file
@@ -116,7 +133,7 @@ process fastqc_original {
     """
 }
 process fastqc_processado {
-    container "7b8f85bb68da"
+    container "biocontainers/fastqc:v0.11.9_cv8"
 
     input:
     path file
