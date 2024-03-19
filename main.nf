@@ -3,9 +3,25 @@ nextflow.enable.dsl=2
 
 params.inputDir = "/mnt/d/Teste_Nextflow/arquivos_de_input"
 params.outputDir = "/mnt/d/Teste_Nextflow"
-params.genome_gtf = "/mnt/d/Teste_Nextflow/genoma_de_referencia/GCF_mixLupe.gtf" // valor padrão
-params.genoma_fasta = "/mnt/d/Teste_Nextflow/genoma_de_referencia/index_GCF"
+params.genome_path = "/mnt/d/Teste_Nextflow/genoma_de_referencia"
+params.genome_gtf = "GCF_mixLupe.gtf" // valor padrão
+params.genoma_fasta = "GCF_000418345.1_ASM41834v1_genomic.fna"
 
+process bowtie_build {
+    container "pegi3s/bowtie1:1.2.3"
+    
+    publishDir "${params.genome_path}", mode: 'copy', pattern: "meu_genoma_index.*"
+    
+    input:
+    path file
+
+    output:
+    path "meu_genoma_index.*"
+
+    """
+    bowtie-build ${file} meu_genoma_index
+    """
+}
 
 process umiToolsExtract {
     container "jdelling7igfl/umi_tools:1.1.2"
@@ -25,28 +41,13 @@ process bowtie {
     container "pegi3s/bowtie1:1.2.3"
 
     input:
-    path file
+    tuple path(file), val(index)
 
     output:
     path "${file}_mapped.sam"
 
     """
-    bowtie --threads 4 -v 2 -m 8 -a ${params.index} ${file} --sam ${file}_mapped.sam
-    """
-}
-
-
-process bowtie_build {
-    container "pegi3s/bowtie1:1.2.3"
-
-    input:
-    path file
-
-    output:
-    path "${file}_mapped.sam"
-
-    """
-    bowtie-build ${params.genoma_fasta} meu_genoma_index
+    bowtie --threads 4 -v 2 -m 8 -a ${params.genome_path}/meu_genoma_index ${file} --sam ${file}_mapped.sam
     """
 }
 
@@ -85,7 +86,7 @@ process samtoolsIndex {
     input:
     path file
 
-     output:
+    output:
     path "${file}.bai"
 
     """
@@ -144,11 +145,16 @@ process fastqc_processado {
 }
 
 workflow {
-  
-    // Create a channel with all files in params.inputDir
+
     sequencesFiles_ch = Channel.fromPath(params.inputDir + "/*").flatten()
+    genome_ch = Channel.fromPath(params.genome_path + "/*" + params.genoma_fasta).flatten()
+
+    file("${params.outputDir}/fastqc_output_processado").mkdirs()
+    file("${params.outputDir}/fastqc_output_original").mkdirs()
 
     fastqc_original(sequencesFiles_ch)
+
+    bowtie_build(genome_ch)
 
     // Extract UMIs from the sequence files
     umiExtracted_ch = umiToolsExtract(sequencesFiles_ch)
@@ -156,11 +162,14 @@ workflow {
         storeDir: "${params.outputDir}/umi_processados"
     )
 
+    bowtie_build_index = bowtie_build.out.first()
+    bowtieInputs_ch = umiExtracted_ch.map { file -> tuple(file, bowtie_build_index) }
+
     // Align the sequences to the reference genome
-    bowtieMapped_ch = bowtie(umiExtracted_ch)
+    bowtieMapped_ch = bowtie(bowtieInputs_ch)
     bowtieMapped_ch.collectFile (
-        storeDir: "${params.outputDir}/bowtie_mapeados"
-    )
+    storeDir: "${params.outputDir}/bowtie_mapeados"
+    )   
 
     fastqc_processado(umiToolsExtract.out)
 
